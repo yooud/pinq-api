@@ -1,0 +1,6 @@
+﻿services:
+  pinq.api:
+    image: pinq.api
+    build:
+      context: .
+      dockerfile: pinq.api/Dockerfile
