@@ -1,6 +1,25 @@
-﻿services:
-  pinq.api:
+﻿version: '3.8'
+
+services:
+  api:
     image: pinq.api
     build:
       context: .
       dockerfile: pinq.api/Dockerfile
+    depends_on:
+      - db
+    environment:
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=your_password
+      - DATABASE_NAME=pinqdb
+
+  db:
+    image: postgis/postgis:15-3.5
+    environment:
+      POSTGRES_DB: pinqdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: your_password
+    volumes:
+      - ./db/script.sql:/docker-entrypoint-initdb.d/script.sql
