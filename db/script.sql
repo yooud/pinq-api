@@ -155,6 +155,7 @@ CREATE TABLE "events" (
                           "end_time" timestamp NOT NULL,
                           "visibility" event_visibility NOT NULL,
                           "status" event_status NOT NULL,
+                          "is_active" bool NOT NULL DEFAULT (false),
                           "created_at" timestamp NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
@@ -268,6 +269,10 @@ CREATE INDEX ON "events" ("start_time");
 CREATE INDEX ON "events" ("visibility");
 
 CREATE INDEX ON "events" USING GIST("geom");
+
+CREATE INDEX ON "events" ("status");
+
+CREATE INDEX ON "events" ("is_active");
 
 CREATE INDEX ON "event_participants" ("user_id");
 
