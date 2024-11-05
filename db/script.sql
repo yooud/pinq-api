@@ -224,7 +224,7 @@ CREATE INDEX ON "user_profiles" ("photo_id");
 
 CREATE INDEX ON "user_profiles" ("user_id");
 
-CREATE INDEX ON "user_sessions" ("user_id");
+CREATE INDEX ON "user_sessions" ("uid");
 
 CREATE INDEX ON "user_sessions" ("session_token");
 
