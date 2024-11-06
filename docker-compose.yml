@@ -8,6 +8,7 @@ services:
       dockerfile: pinq.api/Dockerfile
     depends_on:
       - db
+      - redis
     environment:
       - DATABASE_HOST=db
       - DATABASE_PORT=5432
@@ -23,3 +24,11 @@ services:
       POSTGRES_PASSWORD: your_password
     volumes:
       - ./db/script.sql:/docker-entrypoint-initdb.d/script.sql
+    ports:
+      - "5432:5432"
+  
+  redis:
+    image: "redis:latest"
+    ports:
+      - "6379:6379"
+    restart: always
