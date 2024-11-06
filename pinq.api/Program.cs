@@ -1,9 +1,13 @@
+using System.Data;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
+using pinq.api.Repository;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -33,6 +37,12 @@ builder.Services.AddSingleton(FirebaseApp.Create(new AppOptions
 {
     Credential = GoogleCredential.FromFile(builder.Configuration["Firebase:CredentialsFileLocation"])
 }));
+
+builder.Services.AddScoped<IDbConnection>(_ =>
+    new NpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserSessionRepository, UserSessionRepository>();
 
 builder.Services.AddMvc()
     .AddJsonOptions(options =>
