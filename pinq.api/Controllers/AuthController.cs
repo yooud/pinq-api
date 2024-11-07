@@ -13,9 +13,17 @@ namespace pinq.api.Controllers;
 [Authorize]
 public class AuthController(
     IUserRepository userRepository,
+    IUserProfileRepository userProfileRepository,
     IUserSessionRepository sessionRepository,
     ISessionCacheService sessionCacheService) : ControllerBase
 {
+    public async Task<IActionResult> GetProfileStatus()
+    {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var isExists = await userProfileRepository.IsExists(uid);
+        return Ok(new { is_profile_complete = isExists });
+    }
+    
     [HttpPost]
     public async Task<IActionResult> Login([FromBody] LoginDto request)
     {
