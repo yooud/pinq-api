@@ -17,4 +17,10 @@ public class UserSessionRepository(IDbConnection connection) : IUserSessionRepos
                            """;
         await connection.ExecuteAsync(sql, new { uid, sessionId, fcmToken });
     }
+
+    public async Task DeleteSession(string uid)
+    {
+        const string sql = "DELETE FROM user_sessions WHERE uid = @uid";
+        await connection.ExecuteAsync(sql, new { uid });
+    }
 }

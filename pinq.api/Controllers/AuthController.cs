@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using pinq.api.Filters;
 using pinq.api.Models.Dto.Auth;
 using pinq.api.Repository;
 using pinq.api.Services;
@@ -30,6 +31,18 @@ public class AuthController(
         await sessionCacheService.SetSessionAsync(uid, sessionId.ToString());
         
         Response.Headers["X-Session-Id"] = sessionId.ToString();
+        return NoContent();
+    }
+
+    [HttpDelete]
+    [ValidateSession]
+    public async Task<IActionResult> Logout()
+    {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        
+        await sessionRepository.DeleteSession(uid);
+        await sessionCacheService.InvalidateSessionAsync(uid);
+
         return NoContent();
     }
 }
