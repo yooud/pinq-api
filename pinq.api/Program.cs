@@ -6,7 +6,7 @@ using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
-using pinq.api.Middlewares;
+using pinq.api.Filters;
 using pinq.api.Repository;
 using pinq.api.Services;
 using StackExchange.Redis;
@@ -55,13 +55,10 @@ builder.Services.AddMvc()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
     });
 
+builder.Services.AddSingleton(ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"]));
 builder.Services.AddScoped<ISessionDatabaseService, SessionDatabaseService>();
-builder.Services.AddSingleton<IDatabase>(_ =>
-{
-    var redis = ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"]);
-    return redis.GetDatabase();
-});
 builder.Services.AddScoped<ISessionCacheService, RedisSessionCacheService>();
+builder.Services.AddTransient<ValidateSessionAttribute>();
 
 var app = builder.Build();
 
@@ -75,8 +72,6 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
-
-app.UseMiddleware<SessionValidationMiddleware>();
 
 app.MapControllers();
 
