@@ -16,6 +16,28 @@ public class ProfileController(
     IUserProfileRepository profileRepository,
     IPhotoRepository photoRepository) : ControllerBase
 {
+    [HttpGet("{username}")]
+    public async Task<IActionResult> GetProfile(string username)
+    {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        Profile? profile;
+        if (username == "me")
+            profile = await profileRepository.GetProfileByUid(uid);
+        else 
+            profile = await profileRepository.GetProfileByUsername(username);
+        
+        if (profile is null)
+            return NotFound(new { Message = "Profile not found" });
+
+        var photo = await photoRepository.GetPhotoByIdAsync(profile.PhotoId);
+        return Ok(new ProfileDto
+        {
+            Username = profile.Username,
+            DisplayName = profile.DisplayName,
+            ProfilePictureUrl = photo?.ImageUrl
+        });
+    }
+    
     [HttpPatch]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequestDto request)
     {

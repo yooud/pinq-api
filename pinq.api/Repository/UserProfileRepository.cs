@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text;
 using Dapper;
 using pinq.api.Models.Entities;
 
@@ -74,6 +75,41 @@ public class UserProfileRepository(IDbConnection connection) : IUserProfileRepos
             username, 
             displayName
         });
+        return result;
+    }
+
+    public async Task<Profile?> GetProfileByUsername(string username)
+    {
+        const string sql = """
+                           SELECT 
+                               p.user_id AS UserId,
+                               p.username AS Username,
+                               p.display_name AS DisplayName,
+                               p.status AS STATUS,
+                               p.photo_id AS PhotoId,
+                               p.battery_status AS BatteryStatus
+                           FROM user_profiles p 
+                           WHERE p.username = @username
+                           """;
+        var result = await connection.QueryFirstOrDefaultAsync<Profile>(sql, new { username });
+        return result;
+    }
+    
+    public async Task<Profile?> GetProfileByUid(string uid)
+    {
+        const string sql = """
+                           SELECT 
+                               p.user_id AS UserId,
+                               p.username AS Username,
+                               p.display_name AS DisplayName,
+                               p.status AS STATUS,
+                               p.photo_id AS PhotoId,
+                               p.battery_status AS BatteryStatus
+                           FROM user_profiles p 
+                           JOIN users u ON p.user_id = u.id 
+                           WHERE u.uid = @uid
+                           """;
+        var result = await connection.QueryFirstOrDefaultAsync<Profile>(sql, new { uid });
         return result;
     }
 }

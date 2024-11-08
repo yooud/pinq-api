@@ -11,4 +11,8 @@ public interface IUserProfileRepository
     public Task<Profile> UpdateProfileAsync(string uid, string? username, string? displayName);
     
     public Task<Profile> CreateProfileAsync(string uid, string username, string displayName);
+
+    public Task<Profile?> GetProfileByUsername(string username);
+    
+    public Task<Profile?> GetProfileByUid(string uid);
 }
