@@ -17,6 +17,8 @@ public class AuthController(
     IUserSessionRepository sessionRepository,
     ISessionCacheService sessionCacheService) : ControllerBase
 {
+    [HttpGet]
+    [ValidateSession]
     public async Task<IActionResult> GetProfileStatus()
     {
         var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
