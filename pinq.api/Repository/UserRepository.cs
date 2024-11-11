@@ -1,5 +1,6 @@
 using System.Data;
 using Dapper;
+using pinq.api.Models.Entities;
 
 namespace pinq.api.Repository;
 
@@ -16,5 +17,22 @@ public class UserRepository(IDbConnection connection) : IUserRepository
     {
         const string sql = "INSERT INTO users (uid, email) VALUES (@uid, @email)";
         await connection.ExecuteAsync(sql, new { uid, email });
+    }
+
+    public async Task<User> GetUserByUid(string uid)
+    {
+        const string sql = """
+                           SELECT 
+                               u.id AS Id,
+                               u.uid AS Uid,
+                               u.email AS Email,
+                               u.is_banned AS IsBanned,
+                               u.banned_at AS BannedAt,
+                               u.created_at AS CreatedAt
+                           FROM users u 
+                           WHERE uid = @uid
+                           """;
+        var user = await connection.QuerySingleAsync<User>(sql, new { uid });
+        return user;
     }
 }

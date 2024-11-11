@@ -22,4 +22,21 @@ public class PhotoRepository(IDbConnection connection) : IPhotoRepository
         var photo = await connection.QuerySingleOrDefaultAsync<Photo>(sql, new { id });
         return photo;
     }
+
+    public async Task<Photo> CreatePhotoAsync(Photo photo)
+    {
+        const string sql = """
+                           INSERT INTO photos (user_id, photo_type, image_code, image_url, created_at)
+                           VALUES (@UserId, @PhotoType, @ImageCode, @ImageUrl, CURRENT_TIMESTAMP)
+                           RETURNING
+                               id as Id,
+                               user_id as UserId,
+                               photo_type as PhotoType,
+                               image_code as ImageCode,
+                               image_url as ImageUrl,
+                               created_at as CreatedAt
+                           """;
+        var newPhoto = await connection.QueryFirstAsync(sql, photo);
+        return newPhoto;
+    }
 }

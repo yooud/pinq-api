@@ -40,6 +40,7 @@ builder.Services.AddSingleton(FirebaseApp.Create(new AppOptions
 {
     Credential = GoogleCredential.FromFile(builder.Configuration["Firebase:CredentialsFileLocation"])
 }));
+builder.Services.AddScoped<IStorageService, FirebaseStorageService>();
 
 builder.Services.AddScoped<IDbConnection>(_ =>
     new NpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")));
