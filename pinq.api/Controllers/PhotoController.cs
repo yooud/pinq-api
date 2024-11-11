@@ -17,8 +17,20 @@ public class PhotoController(IPhotoRepository photoRepository,
     IStorageService storageService) : ControllerBase
 {
     [HttpPost]
-    public async Task<IActionResult> UploadFile([FromForm] IFormFile? file)
+    [Route("{type}")]
+    public async Task<IActionResult> UploadFile([FromForm] IFormFile? file, string type)
     {
+        var photoType = type switch
+        {
+            "profile" => "avatar",
+            "post" => "post",
+            "chat" => "chat",
+            _ => null
+        };
+
+        if (photoType is null)
+            return BadRequest(new { Message = "Invalid photo type" });
+
         var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         if (file is null || file.Length == 0)
             return BadRequest(new { Message = "File is empty." });
@@ -33,7 +45,8 @@ public class PhotoController(IPhotoRepository photoRepository,
         {
             UserId = user.Id,
             ImageCode = photoCode,
-            ImageUrl = imageUrl
+            ImageUrl = imageUrl,
+            PhotoType = photoType
         };
         await photoRepository.CreatePhotoAsync(photo);
 

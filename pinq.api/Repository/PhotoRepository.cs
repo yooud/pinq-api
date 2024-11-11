@@ -27,7 +27,7 @@ public class PhotoRepository(IDbConnection connection) : IPhotoRepository
     {
         const string sql = """
                            INSERT INTO photos (user_id, photo_type, image_code, image_url, created_at)
-                           VALUES (@UserId, @PhotoType, @ImageCode, @ImageUrl, CURRENT_TIMESTAMP)
+                           VALUES (@UserId, @PhotoType::photo_type, @ImageCode, @ImageUrl, CURRENT_TIMESTAMP)
                            RETURNING
                                id as Id,
                                user_id as UserId,
@@ -36,7 +36,7 @@ public class PhotoRepository(IDbConnection connection) : IPhotoRepository
                                image_url as ImageUrl,
                                created_at as CreatedAt
                            """;
-        var newPhoto = await connection.QueryFirstAsync(sql, photo);
+        var newPhoto = await connection.QueryFirstAsync<Photo>(sql, photo);
         return newPhoto;
     }
 }
