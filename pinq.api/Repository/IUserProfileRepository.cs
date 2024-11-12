@@ -8,7 +8,7 @@ public interface IUserProfileRepository
     
     public Task<bool> IsUsernameTaken(string username);
     
-    public Task<Profile> UpdateProfileAsync(string uid, string? username, string? displayName);
+    public Task<Profile> UpdateProfileAsync(string uid, string? username, string? displayName, int? photoId);
     
     public Task<Profile> CreateProfileAsync(string uid, string username, string displayName);
 

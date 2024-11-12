@@ -3,7 +3,7 @@ using pinq.api.Filters;
 
 namespace pinq.api.Models.Dto.Profile;
 
-[AtLeastOneRequired(nameof(Username), nameof(DisplayName))]
+[AtLeastOneRequired(nameof(Username), nameof(DisplayName), nameof(PictureId))]
 public class UpdateProfileRequestDto
 {
     [Length(5,20)]
@@ -12,4 +12,7 @@ public class UpdateProfileRequestDto
     [Length(5,20)]
     // TODO: https://mgorbatyuk.dev/blog/development/2021-02-20-snake-case-and-asp-net-core/
     public string? DisplayName { get; set; }
+    
+    [Length(36,36)]
+    public string? PictureId { get; set; }
 }

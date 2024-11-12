@@ -51,12 +51,21 @@ public class ProfileController(
                 return BadRequest(new { Message = "Username already taken" });
             }
         }
-        
+
+        Photo? photo = null;
+        if (request.PictureId is not null)
+        {
+            var isPhotoAccessed = await photoRepository.IsPhotoCanBeAccessed(uid, request.PictureId);
+            if (!isPhotoAccessed) 
+                return BadRequest(new { Message = "Wrong photo id" });
+            photo = await photoRepository.GetPhotoByCode(request.PictureId);
+        }
+
         Profile profile;
         var isExists = await profileRepository.IsExists(uid);
         if (isExists)
         {
-            profile = await profileRepository.UpdateProfileAsync(uid, request.Username, request.DisplayName);
+            profile = await profileRepository.UpdateProfileAsync(uid, request.Username, request.DisplayName, photo?.Id);
         }
         else
         {
@@ -66,7 +75,7 @@ public class ProfileController(
                 return BadRequest(new { Message = "Username and display name is required" });
         }
         
-        var photo = await photoRepository.GetPhotoByIdAsync(profile.PhotoId);
+        photo ??= await photoRepository.GetPhotoByIdAsync(profile.PhotoId);
         return Ok(new ProfileDto
         {
             Username = profile.Username,

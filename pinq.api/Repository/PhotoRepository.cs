@@ -6,6 +6,35 @@ namespace pinq.api.Repository;
 
 public class PhotoRepository(IDbConnection connection) : IPhotoRepository
 {
+    public async Task<bool> IsPhotoCanBeAccessed(string uid, string photoCode)
+    {
+        const string sql = """
+                           SELECT 1 
+                           FROM photos p
+                           JOIN users u ON p.user_id = u.id
+                           WHERE u.uid = @uid AND p.image_code = @photoCode
+                           """;
+        var result = await connection.QueryAsync(sql, new { uid, photoCode });
+        return result.SingleOrDefault() != null;
+    }
+
+    public async Task<Photo?> GetPhotoByCode(string code)
+    {
+        const string sql = """
+                           SELECT 
+                               id AS Id, 
+                               user_id AS UserId, 
+                               photo_type AS PhotoType,
+                               image_code AS ImageCode,
+                               image_url AS ImageUrl,
+                               created_at AS CreatedAt
+                           FROM photos 
+                           WHERE image_code = @code
+                           """;
+        var photo = await connection.QuerySingleOrDefaultAsync<Photo>(sql, new { code });
+        return photo;
+    }
+
     public async Task<Photo?> GetPhotoByIdAsync(int id)
     {
         const string sql = """

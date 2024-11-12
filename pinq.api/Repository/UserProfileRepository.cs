@@ -21,13 +21,14 @@ public class UserProfileRepository(IDbConnection connection) : IUserProfileRepos
         return result.SingleOrDefault() != null;
     }
 
-    public async Task<Profile> UpdateProfileAsync(string uid, string? username, string? displayName)
+    public async Task<Profile> UpdateProfileAsync(string uid, string? username, string? displayName, int? photoId)
     {
         const string sql = """
                             UPDATE user_profiles p
                             SET 
                                 username = COALESCE(@username, p.username),
-                                display_name = COALESCE(@displayName, p.display_name)
+                                display_name = COALESCE(@displayName, p.display_name),
+                                photo_id = COALESCE(@photoId, p.photo_id)
                             FROM users u
                             WHERE p.user_id = u.id AND u.uid = @uid;
                             
@@ -46,7 +47,8 @@ public class UserProfileRepository(IDbConnection connection) : IUserProfileRepos
         {
             uid,
             username, 
-            displayName
+            displayName,
+            photoId
         });
         return result;
     }
