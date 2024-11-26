@@ -6,10 +6,17 @@ namespace pinq.api.Repository;
 
 public class UserRepository(IDbConnection connection) : IUserRepository
 {
-    public async Task<bool> IsExists(string uid)
+    public async Task<bool> IsExistsByUid(string uid)
     {
         const string sql = "SELECT 1 FROM users WHERE uid = @uid";
         var result = await connection.QueryAsync(sql, new { uid });
+        return result.SingleOrDefault() != null;
+    }
+
+    public async Task<bool> IsExistsByEmail(string email)
+    {
+        const string sql = "SELECT 1 FROM users WHERE email = @email";
+        var result = await connection.QueryAsync(sql, new { email });
         return result.SingleOrDefault() != null;
     }
 

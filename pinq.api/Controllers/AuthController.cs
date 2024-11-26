@@ -30,9 +30,11 @@ public class AuthController(
     public async Task<IActionResult> Login([FromBody] LoginDto request)
     {
         var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        if (!await userRepository.IsExists(uid))
+        if (!await userRepository.IsExistsByUid(uid))
         {
             var email = User.FindFirstValue(ClaimTypes.Email)!;
+            if (await userRepository.IsExistsByEmail(email))
+                return BadRequest(new { Message = "Email already exists" });
             await userRepository.CreateUser(uid, email);
         }
 
