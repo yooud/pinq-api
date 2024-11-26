@@ -1,7 +1,10 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using pinq.api.Filters;
+using pinq.api.Models.Dto;
+using pinq.api.Models.Dto.Profile;
 using pinq.api.Models.Entities;
 using pinq.api.Repository;
 
@@ -49,5 +52,38 @@ public class FriendController(
             await friendRepository.CreateFriendshipAsync(receiver.UserId, sender.UserId);
         }
         return Ok(new { Status = friendRequest.Status });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetFriendRequests(
+        [FromQuery][Range(0, int.MaxValue, ErrorMessage = "The skip parameter must be a non-negative integer.")] int skip = 0,
+        [FromQuery][Range(0, int.MaxValue, ErrorMessage = "The count parameter must be a non-negative integer.")] int count = 50,
+        [FromQuery] string type = "incoming"
+    )
+    {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        
+        var allowedTypes = new[] { "incoming", "outgoing" };
+        if (!allowedTypes.Contains(type.ToLower()))
+            return BadRequest(new { Message = "Invalid type. Allowed values: incoming, outgoing." });
+        
+        var profiles = await friendRequestRepository.GetFriendRequestsAsync(uid, type, count, skip);
+        var totalCount = await friendRequestRepository.CountFriendRequestsAsync(uid, type);
+        
+        return Ok(new PaginatedListDto
+        {
+            Data = profiles.Select(profile => new ProfileDto
+            {
+                Username = profile.Username,
+                DisplayName = profile.DisplayName,
+                ProfilePictureUrl = profile.Photo?.ImageUrl
+            }),
+            Pagination = new PaginatedListDto.Metadata
+            {
+                Skip = skip,
+                Count = profiles.Count(),
+                Total = totalCount
+            }
+        });
     }
 }

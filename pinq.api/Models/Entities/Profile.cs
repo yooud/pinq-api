@@ -13,4 +13,6 @@ public class Profile
     public int PhotoId { get; set; }
 
     public int BatteryStatus { get; set; }
+    
+    public Photo? Photo { get; set; }
 }

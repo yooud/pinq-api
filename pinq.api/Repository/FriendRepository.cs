@@ -77,6 +77,56 @@ public class FriendRepository(IDbConnection connection) : IFriendRequestReposito
         return friendRequest;
     }
 
+    public async Task<IEnumerable<Profile>> GetFriendRequestsAsync(string uid, string type, int count, int skip)
+    {
+        const string sqlTemplate = """
+                                   SELECT 
+                                       p.username AS Username,
+                                       p.display_name AS DisplayName,
+                                       ph.image_url AS ImageUrl
+                                   FROM friends_requests fr
+                                   JOIN users u ON fr.{0} = u.id 
+                                   JOIN user_profiles p ON u.id = p.user_id
+                                   LEFT JOIN photos ph ON p.photo_id = ph.id
+                                   WHERE u.uid = @uid AND
+                                         fr.status = 'pending'
+                                   LIMIT :count
+                                   OFFSET :skip
+                                   """;
+
+        var column = type == "incoming" ? "receiver_id" : "sender_id";
+        var sql = string.Format(sqlTemplate, column);
+        
+        var profiles = await connection.QueryAsync<Profile, Photo, Profile>(
+            sql,
+            (profile, photo) =>
+            {
+                profile.Photo = photo;
+                return profile;
+            },
+            new { uid, type, count, skip },
+            splitOn: "ImageUrl"
+        );
+        return profiles;
+    }
+
+    public async Task<int> CountFriendRequestsAsync(string uid, string type)
+    {
+        const string sqlTemplate = """
+                                   SELECT COUNT(*)
+                                   FROM friends_requests fr
+                                   JOIN users u ON fr.{0} = u.id 
+                                   WHERE u.uid = @uid AND
+                                         fr.status = 'pending'
+                                   """;
+
+        var column = type == "incoming" ? "receiver_id" : "sender_id";
+        var sql = string.Format(sqlTemplate, column);
+
+        var result = await connection.ExecuteScalarAsync(sql, new { uid });
+        return Convert.ToInt32(result);
+    }
+
     public async Task<Friend> CreateFriendshipAsync(int userId1, int userId2)
     {
         if (userId1 > userId2)

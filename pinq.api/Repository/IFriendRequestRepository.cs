@@ -9,4 +9,8 @@ public interface IFriendRequestRepository
     public Task<FriendRequest> CreateFriendRequestAsync(FriendRequest friendRequest);
     
     public Task<FriendRequest?> AcceptFriendRequestAsync(int requestId);
+    
+    public Task<IEnumerable<Profile>> GetFriendRequestsAsync(string uid, string type, int count, int skip);
+
+    public Task<int> CountFriendRequestsAsync(string uid, string type);
 }
