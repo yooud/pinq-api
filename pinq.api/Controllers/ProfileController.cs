@@ -1,7 +1,9 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using pinq.api.Filters;
+using pinq.api.Models.Dto;
 using pinq.api.Models.Dto.Profile;
 using pinq.api.Models.Entities;
 using pinq.api.Repository;
@@ -14,6 +16,7 @@ namespace pinq.api.Controllers;
 [Authorize]
 public class ProfileController(
     IUserProfileRepository profileRepository,
+    IFriendRepository friendRepository,
     IPhotoRepository photoRepository) : ControllerBase
 {
     [HttpGet("{username}")]
@@ -81,6 +84,42 @@ public class ProfileController(
             Username = profile.Username,
             DisplayName = profile.DisplayName,
             ProfilePictureUrl = photo?.ImageUrl
+        });
+    }
+    
+    [HttpGet("{username}/friends")]
+    public async Task<IActionResult> GetFriends(string username,
+        [FromQuery][Range(0, int.MaxValue, ErrorMessage = "The skip parameter must be a non-negative integer.")] int skip = 0,
+        [FromQuery][Range(0, int.MaxValue, ErrorMessage = "The count parameter must be a non-negative integer.")] int count = 50
+    )
+    {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        Profile? profile;
+        if (username == "me")
+            profile = await profileRepository.GetProfileByUid(uid);
+        else 
+            profile = await profileRepository.GetProfileByUsername(username);
+        
+        if (profile is null)
+            return NotFound(new { Message = "Profile not found" });
+        
+        var profiles = await friendRepository.GetFriendsAsync(profile.UserId, count, skip);
+        var totalCount = await friendRepository.CountFriendsAsync(profile.UserId);
+
+        return Ok(new PaginatedListDto
+        {
+            Data = profiles.Select(profile => new ProfileDto
+            {
+                Username = profile.Username,
+                DisplayName = profile.DisplayName,
+                ProfilePictureUrl = profile.Photo?.ImageUrl
+            }),
+            Pagination = new PaginatedListDto.Metadata
+            {
+                Skip = skip,
+                Count = profiles.Count(),
+                Total = totalCount
+            }
         });
     }
 }

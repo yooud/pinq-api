@@ -143,4 +143,47 @@ public class FriendRepository(IDbConnection connection) : IFriendRequestReposito
         var friendship = await connection.QueryFirstAsync<Friend>(sql, new { userId1, userId2 });
         return friendship;
     }
+
+    public async Task<IEnumerable<Profile>> GetFriendsAsync(int userId, int count, int skip)
+    {
+        const string sql = """
+                                   SELECT 
+                                       p.username AS Username,
+                                       p.display_name AS DisplayName,
+                                       ph.image_url AS ImageUrl
+                                   FROM friends f
+                                   JOIN user_profiles p 
+                                       ON (f.user_id = @userId AND p.user_id = f.friend_id)
+                                       OR (f.friend_id = @userId AND p.user_id = f.user_id)
+                                   LEFT JOIN photos ph ON p.photo_id = ph.id
+                                   WHERE f.user_id = @userId OR
+                                         f.friend_id = @userId
+                                   LIMIT @count
+                                   OFFSET @skip
+                                   """;
+        
+        var profiles = await connection.QueryAsync<Profile, Photo, Profile>(
+            sql,
+            (profile, photo) =>
+            {
+                profile.Photo = photo;
+                return profile;
+            },
+            new { userId, count, skip },
+            splitOn: "ImageUrl"
+        );
+        return profiles;
+    }
+
+    public async Task<int> CountFriendsAsync(int userId)
+    {
+        const string sql = """
+                           SELECT COUNT(*)
+                           FROM friends f
+                           WHERE f.user_id = @userId OR
+                                 f.friend_id = @userId
+                           """;
+        var result = await connection.ExecuteScalarAsync(sql, new { userId });
+        return Convert.ToInt32(result);
+    }
 }
