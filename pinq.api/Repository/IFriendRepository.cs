@@ -8,6 +8,8 @@ public interface IFriendRepository
     
     public Task<Friend> CreateFriendshipAsync(int userId1, int userId2);
     
+    public Task DeleteFriendshipAsync(int userId1, int userId2);
+    
     public Task<IEnumerable<Profile>> GetFriendsAsync(int userId, int count, int skip);
 
     public Task<int> CountFriendsAsync(int userId);

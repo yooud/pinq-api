@@ -86,4 +86,36 @@ public class FriendController(
             }
         });
     }
+
+    [HttpDelete("{username}")]
+    public async Task<IActionResult> DeleteFriend(string username)
+    {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        var sender = await profileRepository.GetProfileByUid(uid);
+        if (sender is null) 
+            return BadRequest(new { message = "You have not complete your profile." });
+        
+        var receiver = await profileRepository.GetProfileByUsername(username);
+        if (receiver is null)
+            return NotFound(new { Message = "User not found" });
+        
+        var isFriends = await friendRepository.IsFriendsAsync(receiver.UserId, sender.UserId);
+        if (isFriends)
+        {
+            await friendRepository.DeleteFriendshipAsync(receiver.UserId, sender.UserId);
+            return Ok();
+        }
+        
+        var friendRequest = await friendRequestRepository.GetFriendRequestAsync(receiver.UserId, sender.UserId);
+        if (friendRequest is null)
+            return BadRequest(new { message = "You are not friends and there are no friend requests." });
+        
+        if (friendRequest.SenderId == sender.UserId)
+            friendRequest = await friendRequestRepository.CancelFriendRequestAsync(friendRequest.Id);
+        else 
+            friendRequest = await friendRequestRepository.RejectFriendRequestAsync(friendRequest.Id);
+
+        return Ok(new { Status = friendRequest.Status });
+    }
 }

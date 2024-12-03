@@ -62,7 +62,45 @@ public class FriendRepository(IDbConnection connection) : IFriendRequestReposito
     {
         const string sql = """
                            UPDATE friends_requests fr 
-                           SET status = 'accepted' AND 
+                           SET status = 'accepted',
+                               updated_at = CURRENT_TIMESTAMP
+                           WHERE fr.id = @requestId
+                           RETURNING
+                               id AS Id,
+                               sender_id AS SenderId,
+                               receiver_id AS ReceiverId,
+                               status AS Status,
+                               created_at AS CreatedAt,
+                               updated_at AS UpdatedAt
+                           """;
+        var friendRequest = await connection.QueryFirstOrDefaultAsync<FriendRequest>(sql, new { requestId });
+        return friendRequest;
+    }
+
+    public async Task<FriendRequest?> RejectFriendRequestAsync(int requestId)
+    {
+        const string sql = """
+                           UPDATE friends_requests fr 
+                           SET status = 'rejected',
+                               updated_at = CURRENT_TIMESTAMP
+                           WHERE fr.id = @requestId
+                           RETURNING
+                               id AS Id,
+                               sender_id AS SenderId,
+                               receiver_id AS ReceiverId,
+                               status AS Status,
+                               created_at AS CreatedAt,
+                               updated_at AS UpdatedAt
+                           """;
+        var friendRequest = await connection.QueryFirstOrDefaultAsync<FriendRequest>(sql, new { requestId });
+        return friendRequest;
+    }
+
+    public async Task<FriendRequest?> CancelFriendRequestAsync(int requestId)
+    {
+        const string sql = """
+                           UPDATE friends_requests fr 
+                           SET status = 'canceled',
                                updated_at = CURRENT_TIMESTAMP
                            WHERE fr.id = @requestId
                            RETURNING
@@ -142,6 +180,18 @@ public class FriendRepository(IDbConnection connection) : IFriendRequestReposito
                            """;
         var friendship = await connection.QueryFirstAsync<Friend>(sql, new { userId1, userId2 });
         return friendship;
+    }
+
+    public async Task DeleteFriendshipAsync(int userId1, int userId2)
+    {
+        if (userId1 > userId2)
+        {
+            await DeleteFriendshipAsync(userId2, userId1);
+            return;
+        }
+        
+        const string sql = "DELETE FROM friends WHERE user_id = @userId1 AND friend_id = @userId2";
+        await connection.ExecuteAsync(sql, new { userId1, userId2 });
     }
 
     public async Task<IEnumerable<Profile>> GetFriendsAsync(int userId, int count, int skip)
