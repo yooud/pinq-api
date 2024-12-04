@@ -7,4 +7,6 @@ public class ProfileDto
     public string? DisplayName { get; set; }
 
     public string? ProfilePictureUrl { get; set; }
+
+    public bool? IsFriend { get; set; }
 }

@@ -197,20 +197,20 @@ public class FriendRepository(IDbConnection connection) : IFriendRequestReposito
     public async Task<IEnumerable<Profile>> GetFriendsAsync(int userId, int count, int skip)
     {
         const string sql = """
-                                   SELECT 
-                                       p.username AS Username,
-                                       p.display_name AS DisplayName,
-                                       ph.image_url AS ImageUrl
-                                   FROM friends f
-                                   JOIN user_profiles p 
-                                       ON (f.user_id = @userId AND p.user_id = f.friend_id)
-                                       OR (f.friend_id = @userId AND p.user_id = f.user_id)
-                                   LEFT JOIN photos ph ON p.photo_id = ph.id
-                                   WHERE f.user_id = @userId OR
-                                         f.friend_id = @userId
-                                   LIMIT @count
-                                   OFFSET @skip
-                                   """;
+                           SELECT 
+                               p.username AS Username,
+                               p.display_name AS DisplayName,
+                               ph.image_url AS ImageUrl
+                           FROM friends f
+                           JOIN user_profiles p 
+                               ON (f.user_id = @userId AND p.user_id = f.friend_id)
+                               OR (f.friend_id = @userId AND p.user_id = f.user_id)
+                           LEFT JOIN photos ph ON p.photo_id = ph.id
+                           WHERE f.user_id = @userId OR
+                                 f.friend_id = @userId
+                           LIMIT @count
+                           OFFSET @skip
+                           """;
         
         var profiles = await connection.QueryAsync<Profile, Photo, Profile>(
             sql,

@@ -23,21 +23,35 @@ public class ProfileController(
     public async Task<IActionResult> GetProfile(string username)
     {
         var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        Profile? profile;
-        if (username == "me")
-            profile = await profileRepository.GetProfileByUid(uid);
-        else 
-            profile = await profileRepository.GetProfileByUsername(username);
         
-        if (profile is null)
-            return NotFound(new { Message = "Profile not found" });
+        var myProfile = await profileRepository.GetProfileByUid(uid);
+        if (myProfile is null)
+            return NotFound(new { Message = "You have not complete your profile" });
 
-        var photo = await photoRepository.GetPhotoByIdAsync(profile.PhotoId);
+        Photo? photo;
+        if (username == "me")
+        {
+            photo = await photoRepository.GetPhotoByIdAsync(myProfile.PhotoId);
+            return Ok(new ProfileDto
+            {
+                Username = myProfile.Username,
+                DisplayName = myProfile.DisplayName,
+                ProfilePictureUrl = photo?.ImageUrl
+            });
+        }
+        
+        var userProfile = await profileRepository.GetProfileByUsername(username);
+        if (userProfile is null)
+            return NotFound(new { Message = "Profile not found" });
+        
+        var isFriends = await friendRepository.IsFriendsAsync(myProfile.UserId, userProfile.UserId);
+        photo = await photoRepository.GetPhotoByIdAsync(myProfile.PhotoId);
         return Ok(new ProfileDto
         {
-            Username = profile.Username,
-            DisplayName = profile.DisplayName,
-            ProfilePictureUrl = photo?.ImageUrl
+            Username = myProfile.Username,
+            DisplayName = myProfile.DisplayName,
+            ProfilePictureUrl = photo?.ImageUrl,
+            IsFriend = isFriends
         });
     }
     
@@ -94,30 +108,59 @@ public class ProfileController(
     )
     {
         var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        Profile? profile;
-        if (username == "me")
-            profile = await profileRepository.GetProfileByUid(uid);
-        else 
-            profile = await profileRepository.GetProfileByUsername(username);
         
-        if (profile is null)
+        var myProfile = await profileRepository.GetProfileByUid(uid);
+        if (myProfile is null)
+            return NotFound(new { Message = "You have not complete your profile" });
+        
+        var myFriendsCount = await friendRepository.CountFriendsAsync(myProfile.UserId);
+        IEnumerable<Profile>? profiles;
+        Profile[]? enumerable;
+        if (username == "me")
+        {
+            profiles = await friendRepository.GetFriendsAsync(myProfile.UserId, count, skip);
+            enumerable = profiles as Profile[] ?? profiles.ToArray();
+            return Ok(new PaginatedListDto
+            {
+                Data = enumerable.Select(profile => new ProfileDto
+                {
+                    Username = profile.Username,
+                    DisplayName = profile.DisplayName,
+                    ProfilePictureUrl = profile.Photo?.ImageUrl,
+                    IsFriend = true
+                }),
+                Pagination = new PaginatedListDto.Metadata
+                {
+                    Skip = skip,
+                    Count = enumerable.Length,
+                    Total = myFriendsCount
+                }
+            });
+        }
+        
+        var userProfile = await profileRepository.GetProfileByUsername(username);
+        if (userProfile is null)
             return NotFound(new { Message = "Profile not found" });
         
-        var profiles = await friendRepository.GetFriendsAsync(profile.UserId, count, skip);
-        var totalCount = await friendRepository.CountFriendsAsync(profile.UserId);
+        var myFriendsProfiles = await friendRepository.GetFriendsAsync(myProfile.UserId, myFriendsCount, 0);
+       
+        profiles = await friendRepository.GetFriendsAsync(userProfile.UserId, count, skip);
+        var totalCount = await friendRepository.CountFriendsAsync(userProfile.UserId);
 
+        enumerable = profiles as Profile[] ?? profiles.ToArray();
         return Ok(new PaginatedListDto
         {
-            Data = profiles.Select(profile => new ProfileDto
+            Data = enumerable.Select(profile => new ProfileDto
             {
                 Username = profile.Username,
                 DisplayName = profile.DisplayName,
-                ProfilePictureUrl = profile.Photo?.ImageUrl
+                ProfilePictureUrl = profile.Photo?.ImageUrl,
+                IsFriend = myFriendsProfiles.Any(p => p.Username.Equals(profile.Username))
             }),
             Pagination = new PaginatedListDto.Metadata
             {
                 Skip = skip,
-                Count = profiles.Count(),
+                Count = enumerable.Length,
                 Total = totalCount
             }
         });

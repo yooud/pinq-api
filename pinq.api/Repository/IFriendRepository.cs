@@ -1,3 +1,4 @@
+using pinq.api.Models.Dto.Profile;
 using pinq.api.Models.Entities;
 
 namespace pinq.api.Repository;
