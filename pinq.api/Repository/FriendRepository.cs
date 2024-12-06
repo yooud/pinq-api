@@ -124,7 +124,7 @@ public class FriendRepository(IDbConnection connection) : IFriendRequestReposito
                                        ph.image_url AS ImageUrl
                                    FROM friends_requests fr
                                    JOIN users u ON fr.{0} = u.id 
-                                   JOIN user_profiles p ON u.id = p.user_id
+                                   JOIN user_profiles p ON fr.{1} = p.user_id
                                    LEFT JOIN photos ph ON p.photo_id = ph.id
                                    WHERE u.uid = @uid AND
                                          fr.status = 'pending'
@@ -132,8 +132,9 @@ public class FriendRepository(IDbConnection connection) : IFriendRequestReposito
                                    OFFSET :skip
                                    """;
 
-        var column = type == "incoming" ? "receiver_id" : "sender_id";
-        var sql = string.Format(sqlTemplate, column);
+        var receiverColumn = type == "incoming" ? "receiver_id" : "sender_id";
+        var senderColumn = type == "incoming" ? "sender_id" : "receiver_id";
+        var sql = string.Format(sqlTemplate, receiverColumn, senderColumn);
         
         var profiles = await connection.QueryAsync<Profile, Photo, Profile>(
             sql,
