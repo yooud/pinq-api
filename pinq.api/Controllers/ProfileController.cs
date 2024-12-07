@@ -45,11 +45,11 @@ public class ProfileController(
             return NotFound(new { Message = "Profile not found" });
         
         var isFriends = await friendRepository.IsFriendsAsync(myProfile.UserId, userProfile.UserId);
-        photo = await photoRepository.GetPhotoByIdAsync(myProfile.PhotoId);
+        photo = await photoRepository.GetPhotoByIdAsync(userProfile.PhotoId);
         return Ok(new ProfileDto
         {
-            Username = myProfile.Username,
-            DisplayName = myProfile.DisplayName,
+            Username = userProfile.Username,
+            DisplayName = userProfile.DisplayName,
             ProfilePictureUrl = photo?.ImageUrl,
             IsFriend = isFriends
         });

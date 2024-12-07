@@ -48,6 +48,8 @@ public class FriendController(
         }
         else
         {
+            if (friendRequest.SenderId == sender.UserId)
+                return BadRequest(new { message = "You have already sent a friend request" });
             friendRequest = await friendRequestRepository.AcceptFriendRequestAsync(friendRequest.Id);
             await friendRepository.CreateFriendshipAsync(receiver.UserId, sender.UserId);
         }
