@@ -9,6 +9,7 @@ using Npgsql;
 using pinq.api.Filters;
 using pinq.api.Repository;
 using pinq.api.Services;
+using pinq.api.WebSockets;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -64,6 +65,7 @@ builder.Services.AddMvc()
 builder.Services.AddSingleton(ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"]));
 builder.Services.AddScoped<ISessionDatabaseService, SessionDatabaseService>();
 builder.Services.AddScoped<ISessionCacheService, RedisSessionCacheService>();
+builder.Services.AddScoped<IAuthorizationService, FirebaseAuthorizationService>();
 builder.Services.AddTransient<ValidateSessionAttribute>();
 
 var app = builder.Build();
@@ -75,7 +77,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+app.UseWebSockets();
 
 app.UseAuthorization();
 
