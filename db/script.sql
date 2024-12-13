@@ -73,11 +73,10 @@ CREATE TABLE "user_sessions" (
 );
 
 CREATE TABLE "locations" (
-                             "id" serial,
+                             "id" serial PRIMARY KEY,
                              "user_id" int,
                              "geom" GEOMETRY(Point,4326) NOT NULL,
-                             "created_at" timestamp NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-                             PRIMARY KEY ("id", "user_id")
+                             "created_at" timestamp NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
 CREATE TABLE "location_settings" (
