@@ -37,6 +37,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddScoped<MapWebSocketHandler>();
+
 builder.Services.AddSingleton(FirebaseApp.Create(new AppOptions
 {
     Credential = GoogleCredential.FromFile(builder.Configuration["Firebase:CredentialsFileLocation"])
@@ -52,6 +54,7 @@ builder.Services.AddScoped<IUserSessionRepository, UserSessionRepository>();
 builder.Services.AddScoped<IPhotoRepository, PhotoRepository>();
 builder.Services.AddScoped<IFriendRepository, FriendRepository>();
 builder.Services.AddScoped<IFriendRequestRepository, FriendRepository>();
+builder.Services.AddScoped<IMapRepository, MapRepository>();
 
 builder.Services.AddMvc()
     .AddJsonOptions(options =>
@@ -83,4 +86,5 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+app.Map("/map/ws", async context => await context.RequestServices.GetRequiredService<MapWebSocketHandler>().HandleAsync(context));
 app.Run();

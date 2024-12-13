@@ -10,7 +10,7 @@ public class UpdateProfileRequestDto
     public string? Username { get; set; }
 
     [Length(5,20)]
-    // TODO: https://mgorbatyuk.dev/blog/development/2021-02-20-snake-case-and-asp-net-core/
+    
     public string? DisplayName { get; set; }
     
     [Length(36,36)]
