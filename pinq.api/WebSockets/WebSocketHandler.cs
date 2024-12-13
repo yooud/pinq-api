@@ -2,13 +2,17 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using FirebaseAdmin.Auth;
-using Microsoft.IdentityModel.Tokens;
 using pinq.api.Services;
 
 namespace pinq.api.WebSockets;
 
 public abstract class WebSocketHandler(IAuthorizationService authorizationService, ISessionCacheService sessionService)
 {
+    private static JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        DictionaryKeyPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
     private WebSocket _webSocket;
     protected bool IsAuthorized = false;
     protected FirebaseToken Token;
@@ -16,19 +20,18 @@ public abstract class WebSocketHandler(IAuthorizationService authorizationServic
     private async Task<bool> ValidateAuthorizationAsync(JsonElement message)
     {
         var token = message.GetProperty("data").GetProperty("token").GetString();
-        if (token.IsNullOrEmpty())
+        if (string.IsNullOrEmpty(token))
             return false;
+
         var isAuthorized = await authorizationService.ValidateTokenAsync(token);
-        if (isAuthorized) 
-            return true;
-        
+        if (!isAuthorized)
+            return false;
+
         Token = await authorizationService.GetTokenAsync(token);
         var session = message.GetProperty("data").GetProperty("session").GetString();
         var isValid = await sessionService.ValidateSessionAsync(Token.Uid, session);
         return isValid;
     }
-
-    // protected async Task<bool> ValidateSessionAsync(string sessionId) => await sessionValidationService.ValidateSessionAsync(sessionId);
 
     public async Task HandleAsync(HttpContext context)
     {
@@ -44,7 +47,7 @@ public abstract class WebSocketHandler(IAuthorizationService authorizationServic
     
     protected async Task SendMessage(object message)
     {
-        var messageJson = JsonSerializer.Serialize(message);
+        var messageJson = JsonSerializer.Serialize(message, _jsonOptions);
         var messageBuffer = Encoding.UTF8.GetBytes(messageJson);
         await _webSocket.SendAsync(new ArraySegment<byte>(messageBuffer), WebSocketMessageType.Text, true, CancellationToken.None);
     }
@@ -76,14 +79,23 @@ public abstract class WebSocketHandler(IAuthorizationService authorizationServic
                     if (jsonDoc.RootElement.GetProperty("type").GetString().Equals("auth"))
                     {
                         IsAuthorized = await ValidateAuthorizationAsync(jsonDoc.RootElement);
-                        if (IsAuthorized) continue;
+                        if (IsAuthorized)
+                        {
+                            await OnInitialAsync();
+                            continue;
+                        }
                     }
 
                     var response = new { type = "error", message = "Unauthorized" };
                     await SendMessage(response);
                 }
             }
-            catch (Exception ex)
+            catch (JsonException ex)
+            {
+                var response = new { type = "error", message = "Invalid JSON format" };
+                await SendMessage(response);
+            }
+            catch (KeyNotFoundException ex)
             {
                 var response = new { type = "error", message = "Invalid JSON format" };
                 await SendMessage(response);
@@ -94,4 +106,6 @@ public abstract class WebSocketHandler(IAuthorizationService authorizationServic
     }
  
     protected abstract Task HandleMessageAsync(JsonElement message);
+
+    protected abstract Task OnInitialAsync();
 }
