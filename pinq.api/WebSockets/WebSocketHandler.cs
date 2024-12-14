@@ -2,11 +2,15 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using FirebaseAdmin.Auth;
+using pinq.api.Repository;
 using pinq.api.Services;
 
 namespace pinq.api.WebSockets;
 
-public abstract class WebSocketHandler(IAuthorizationService authorizationService, ISessionCacheService sessionService)
+public abstract class WebSocketHandler(
+    IAuthorizationService authorizationService,
+    ISessionCacheService sessionService,
+    IUserRepository userRepository)
 {
     private static JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
     {
@@ -14,8 +18,12 @@ public abstract class WebSocketHandler(IAuthorizationService authorizationServic
         DictionaryKeyPolicy = JsonNamingPolicy.SnakeCaseLower,
     };
     private WebSocket _webSocket;
-    protected bool IsAuthorized = false;
+    private bool _isAuthorized;
+    
     protected FirebaseToken Token;
+    protected IWebSocketConnectionManager ConnectionManager;
+    
+    public int UserId { get; set; }
     
     private async Task<bool> ValidateAuthorizationAsync(JsonElement message)
     {
@@ -41,11 +49,12 @@ public abstract class WebSocketHandler(IAuthorizationService authorizationServic
             return;
         }
 
+        ConnectionManager = context.RequestServices.GetRequiredService<MapWebSocketConnectionManager>();
         _webSocket = await context.WebSockets.AcceptWebSocketAsync();
         await CommunicateWithClientAsync();
     }
     
-    protected async Task SendMessage(object message)
+    public async Task SendMessage(object message)
     {
         var messageJson = JsonSerializer.Serialize(message, _jsonOptions);
         var messageBuffer = Encoding.UTF8.GetBytes(messageJson);
@@ -70,7 +79,7 @@ public abstract class WebSocketHandler(IAuthorizationService authorizationServic
             {
                 jsonDoc = JsonDocument.Parse(receivedMessage);
 
-                if (IsAuthorized)
+                if (_isAuthorized)
                 {
                     await HandleMessageAsync(jsonDoc.RootElement);
                 }
@@ -78,9 +87,13 @@ public abstract class WebSocketHandler(IAuthorizationService authorizationServic
                 {
                     if (jsonDoc.RootElement.GetProperty("type").GetString().Equals("auth"))
                     {
-                        IsAuthorized = await ValidateAuthorizationAsync(jsonDoc.RootElement);
-                        if (IsAuthorized)
+                        _isAuthorized = await ValidateAuthorizationAsync(jsonDoc.RootElement);
+                        if (_isAuthorized)
                         {
+                            var user = await userRepository.GetUserByUid(Token.Uid);
+                            UserId = user.Id;
+                            ConnectionManager.AddConnection(UserId, this);
+                            
                             await OnInitialAsync();
                             continue;
                         }
@@ -101,7 +114,8 @@ public abstract class WebSocketHandler(IAuthorizationService authorizationServic
                 await SendMessage(response);
             }
         } while (!result.CloseStatus.HasValue);
-
+        
+        ConnectionManager.RemoveConnection(UserId);
         await _webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
     }
  

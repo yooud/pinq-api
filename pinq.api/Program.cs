@@ -37,6 +37,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddSingleton<MapWebSocketConnectionManager>();
 builder.Services.AddScoped<MapWebSocketHandler>();
 
 builder.Services.AddSingleton(FirebaseApp.Create(new AppOptions

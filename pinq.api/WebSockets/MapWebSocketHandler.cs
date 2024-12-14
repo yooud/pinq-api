@@ -13,7 +13,7 @@ public class MapWebSocketHandler(
     IAuthorizationService authorizationService,
     ISessionCacheService sessionService,
     IUserRepository userRepository,
-    IMapRepository mapRepository) : WebSocketHandler(authorizationService, sessionService)
+    IMapRepository mapRepository) : WebSocketHandler(authorizationService, sessionService, userRepository)
 {
     protected override async Task HandleMessageAsync(JsonElement message)
     {
@@ -22,8 +22,7 @@ public class MapWebSocketHandler(
 
     protected override async Task OnInitialAsync()
     {
-        var user = await userRepository.GetUserByUid(Token.Uid);
-        var profiles = await mapRepository.GetFriendsLocationsAsync(user.Id);
+        var profiles = await mapRepository.GetFriendsLocationsAsync(UserId);
         await SendMessage( new { type = "initial", data = profiles });
     }
 }
