@@ -16,6 +16,7 @@ public class ReportController(
     IUserProfileRepository profileRepository,
     IComplaintRepository complaintRepository) : ControllerBase
 {
+    [HttpPost]
     public async Task<IActionResult> CreateReport([FromBody] CreateReportRequestDto request)
     {
         var contentType = request.ContentType switch

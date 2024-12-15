@@ -1,6 +1,8 @@
 using System.Data;
 using System.Text;
 using Dapper;
+using pinq.api.Models.Dto.Admin;
+using pinq.api.Models.Dto.Profile;
 using pinq.api.Models.Entities;
 
 namespace pinq.api.Repository;
@@ -113,5 +115,49 @@ public class UserProfileRepository(IDbConnection connection) : IUserProfileRepos
                            """;
         var result = await connection.QueryFirstOrDefaultAsync<Profile>(sql, new { uid });
         return result;
+    }
+
+    public async Task<IEnumerable<UserDto>> GetProfilesAsync(int count, int skip)
+    {
+        const string sql = """
+                           SELECT 
+                               u.id AS Id,
+                               u.uid AS Uid,
+                               u.email AS Email,
+                               u.is_banned AS IsBanned,
+                               EXTRACT(EPOCH FROM u.banned_at) AS BannedAt,
+                               EXTRACT(EPOCH FROM u.created_at) AS CreatedAt,
+                               p.username AS Username,
+                               p.display_name AS DisplayName,
+                               ph.image_url AS ProfilePictureUrl
+                           FROM user_profiles p
+                           JOIN users u ON p.user_id = u.id 
+                           LEFT JOIN photos ph ON p.photo_id = ph.id
+                           LIMIT :count
+                           OFFSET :skip
+                           """;
+        
+        var users = await connection.QueryAsync<UserDto, ProfileDto, UserDto>(
+            sql,
+            (user, profile) =>
+            {
+                user.Profile = profile;
+                return user;
+            },
+            new { count, skip },
+            splitOn: "Username"
+        );
+        return users;
+    }
+
+    public async Task<int> CountProfilesAsync()
+    {
+        const string sql = """
+                           SELECT COUNT(*)
+                           FROM user_profiles p 
+                           """;
+
+        var result = await connection.ExecuteScalarAsync(sql);
+        return Convert.ToInt32(result);
     }
 }
