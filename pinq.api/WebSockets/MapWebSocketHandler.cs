@@ -22,7 +22,9 @@ public class MapWebSocketHandler(
 
     protected override async Task OnInitialAsync()
     {
-        var profiles = await mapRepository.GetFriendsLocationsAsync(UserId);
-        await SendMessageAsync( new { type = "initial", data = profiles });
+        var friendsLocations = await mapRepository.GetFriendsLocationsAsync(UserId);
+        var myLocation = await mapRepository.GetLocationsAsync(UserId);
+        var result = friendsLocations.ToArray().Append(myLocation);
+        await SendMessageAsync( new { type = "initial", data =  result});
     }
 }

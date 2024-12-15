@@ -32,8 +32,6 @@ public class MapRepository(IDbConnection connection) : IMapRepository
                            WHERE f.user_id = @userId OR f.friend_id = @userId;
                            """;
         
-        // var profiles = await connection.QueryAsync<ProfileDto>(sql);
-        
         var profiles = await connection.QueryAsync<ProfileDto, LocationDto, ProfileDto>(
             sql,
             (profile, location) =>
@@ -46,5 +44,41 @@ public class MapRepository(IDbConnection connection) : IMapRepository
         );
         
         return profiles;
+    }
+
+    public async Task<ProfileDto?> GetLocationsAsync(int userId)
+    {
+        const string sql = """
+                           SELECT 
+                               p.username AS Username,
+                               p.display_name AS DisplayName,
+                               ph.image_url AS ProfilePictureUrl,
+                               p.status AS Status,
+                               EXTRACT(EPOCH FROM l.created_at) AS LastActivity,
+                               ST_X(l.geom) AS Lng,
+                               ST_Y(l.geom) AS Lat
+                           FROM user_profiles p
+                           LEFT JOIN (
+                               SELECT DISTINCT ON (user_id) 
+                                      user_id, geom, created_at
+                               FROM locations
+                               ORDER BY user_id, created_at DESC
+                           ) l ON l.user_id = p.user_id
+                           LEFT JOIN photos ph ON p.photo_id = ph.id
+                           WHERE p.user_id = @userId;
+                           """;
+        
+        var results = await connection.QueryAsync<ProfileDto, LocationDto, ProfileDto>(
+            sql,
+            (profile, location) =>
+            {
+                profile.Location = location;
+                return profile;
+            },
+            new { userId },
+            splitOn: "Lng"
+        );
+
+        return results.FirstOrDefault();
     }
 }
