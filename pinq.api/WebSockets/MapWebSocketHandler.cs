@@ -23,6 +23,6 @@ public class MapWebSocketHandler(
     protected override async Task OnInitialAsync()
     {
         var profiles = await mapRepository.GetFriendsLocationsAsync(UserId);
-        await SendMessage( new { type = "initial", data = profiles });
+        await SendMessageAsync( new { type = "initial", data = profiles });
     }
 }

@@ -74,6 +74,11 @@ builder.Services.AddTransient<ValidateSessionAttribute>();
 
 var app = builder.Build();
 
+var lifetime = app.Lifetime;
+var connectionManager = app.Services.GetRequiredService<MapWebSocketConnectionManager>();
+
+lifetime.ApplicationStopping.Register(async void () => await connectionManager.CloseAllConnectionsAsync("Server shutting down"));
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

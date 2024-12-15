@@ -12,34 +12,18 @@ public abstract class WebSocketHandler(
     ISessionCacheService sessionService,
     IUserRepository userRepository)
 {
-    private static JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         DictionaryKeyPolicy = JsonNamingPolicy.SnakeCaseLower,
     };
-    private WebSocket _webSocket;
+
+    private WebSocket? _webSocket;
     private bool _isAuthorized;
     
     protected FirebaseToken Token;
     protected IWebSocketConnectionManager ConnectionManager;
-    
-    public int UserId { get; set; }
-    
-    private async Task<bool> ValidateAuthorizationAsync(JsonElement message)
-    {
-        var token = message.GetProperty("data").GetProperty("token").GetString();
-        if (string.IsNullOrEmpty(token))
-            return false;
-
-        var isAuthorized = await authorizationService.ValidateTokenAsync(token);
-        if (!isAuthorized)
-            return false;
-
-        Token = await authorizationService.GetTokenAsync(token);
-        var session = message.GetProperty("data").GetProperty("session").GetString();
-        var isValid = await sessionService.ValidateSessionAsync(Token.Uid, session);
-        return isValid;
-    }
+    public int UserId { get; private set; }
 
     public async Task HandleAsync(HttpContext context)
     {
@@ -49,76 +33,115 @@ public abstract class WebSocketHandler(
             return;
         }
 
-        ConnectionManager = context.RequestServices.GetRequiredService<MapWebSocketConnectionManager>();
         _webSocket = await context.WebSockets.AcceptWebSocketAsync();
+        ConnectionManager = context.RequestServices.GetRequiredService<MapWebSocketConnectionManager>();
+        ConnectionManager.AddUnauthenticatedConnection(this);
         await CommunicateWithClientAsync();
     }
     
-    public async Task SendMessage(object message)
+    public async Task SendMessageAsync(object message)
     {
-        var messageJson = JsonSerializer.Serialize(message, _jsonOptions);
+        if (_webSocket?.State != WebSocketState.Open) return;
+
+        var messageJson = JsonSerializer.Serialize(message, JsonOptions);
         var messageBuffer = Encoding.UTF8.GetBytes(messageJson);
-        await _webSocket.SendAsync(new ArraySegment<byte>(messageBuffer), WebSocketMessageType.Text, true, CancellationToken.None);
+        await _webSocket.SendAsync(
+            new ArraySegment<byte>(messageBuffer),
+            WebSocketMessageType.Text,
+            true,
+            CancellationToken.None);
+    }
+
+    public async Task CloseConnectionAsync(string reason = "Server shutting down")
+    {
+        if (_webSocket?.State is WebSocketState.Open or WebSocketState.CloseReceived or WebSocketState.CloseSent) 
+            await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, reason, CancellationToken.None);
+
+        ConnectionManager.RemoveConnection(UserId);
+        ConnectionManager.RemoveUnauthenticatedConnection(this);
+    }
+
+    private async Task<bool> ValidateAuthorizationAsync(JsonElement message)
+    {
+        if (!message.TryGetProperty("data", out var data) ||
+            !data.TryGetProperty("token", out var tokenProperty) ||
+            string.IsNullOrEmpty(tokenProperty.GetString()))
+            return false;
+
+        var token = tokenProperty.GetString();
+        if (!await authorizationService.ValidateTokenAsync(token)) return false;
+
+        Token = await authorizationService.GetTokenAsync(token);
+
+        if (!data.TryGetProperty("session", out var sessionProperty) || string.IsNullOrEmpty(sessionProperty.GetString()))
+            return false;
+
+        return await sessionService.ValidateSessionAsync(Token.Uid, sessionProperty.GetString());
     }
 
     private async Task CommunicateWithClientAsync()
     {
-        var buffer = new byte[1024 * 4];
-        WebSocketReceiveResult result;
+        var buffer = new byte[4 * 1024];
 
-        do
+        try
         {
-            result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-            if (result.MessageType != WebSocketMessageType.Text) continue;
-
-            var receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            
-            JsonDocument jsonDoc;
-            try
+            while (_webSocket?.State == WebSocketState.Open)
             {
-                jsonDoc = JsonDocument.Parse(receivedMessage);
+                var result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
-                if (_isAuthorized)
+                if (result.MessageType == WebSocketMessageType.Close) break;
+
+                if (result.MessageType == WebSocketMessageType.Text)
                 {
-                    await HandleMessageAsync(jsonDoc.RootElement);
-                }
-                else
-                {
-                    if (jsonDoc.RootElement.GetProperty("type").GetString().Equals("auth"))
+                    var receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+
+                    try
                     {
-                        _isAuthorized = await ValidateAuthorizationAsync(jsonDoc.RootElement);
-                        if (_isAuthorized)
-                        {
-                            var user = await userRepository.GetUserByUid(Token.Uid);
-                            UserId = user.Id;
-                            ConnectionManager.AddConnection(UserId, this);
-                            
-                            await OnInitialAsync();
-                            continue;
-                        }
+                        var jsonDoc = JsonDocument.Parse(receivedMessage);
+                        await HandleReceivedMessageAsync(jsonDoc.RootElement);
                     }
-
-                    var response = new { type = "error", message = "Unauthorized" };
-                    await SendMessage(response);
+                    catch (JsonException)
+                    {
+                        await SendMessageAsync(new { type = "error", message = "Invalid JSON format" });
+                    }
                 }
             }
-            catch (JsonException ex)
-            {
-                var response = new { type = "error", message = "Invalid JSON format" };
-                await SendMessage(response);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                var response = new { type = "error", message = "Invalid JSON format" };
-                await SendMessage(response);
-            }
-        } while (!result.CloseStatus.HasValue);
-        
-        ConnectionManager.RemoveConnection(UserId);
-        await _webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
+        }
+        finally
+        {
+            await CloseConnectionAsync();
+        }
     }
- 
+
+    private async Task HandleReceivedMessageAsync(JsonElement message)
+    {
+        if (_isAuthorized)
+        {
+            await HandleMessageAsync(message);
+        }
+        else if (message.TryGetProperty("type", out var typeProperty) &&
+                 typeProperty.GetString()?.Equals("auth", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            _isAuthorized = await ValidateAuthorizationAsync(message);
+
+            if (_isAuthorized && Token != null)
+            {
+                var user = await userRepository.GetUserByUid(Token.Uid);
+                UserId = user.Id;
+                ConnectionManager.AddConnection(UserId, this);
+                await OnInitialAsync();
+            }
+            else
+            {
+                await SendMessageAsync(new { type = "error", message = "Unauthorized" });
+            }
+        }
+        else
+        {
+            await SendMessageAsync(new { type = "error", message = "Unauthorized" });
+        }
+    }
+
     protected abstract Task HandleMessageAsync(JsonElement message);
 
     protected abstract Task OnInitialAsync();
