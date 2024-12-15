@@ -1,6 +1,7 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FirebaseAdmin.Auth;
 using pinq.api.Repository;
 using pinq.api.Services;
@@ -16,6 +17,7 @@ public abstract class WebSocketHandler(
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         DictionaryKeyPolicy = JsonNamingPolicy.SnakeCaseLower,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
     private WebSocket? _webSocket;
