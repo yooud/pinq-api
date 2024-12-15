@@ -81,4 +81,14 @@ public class MapRepository(IDbConnection connection) : IMapRepository
 
         return results.FirstOrDefault();
     }
+
+    public async Task UpdateLocationAsync(int userId, LocationDto location)
+    {
+        const string sql = """
+                           INSERT INTO locations (user_id, geom)
+                           VALUES (@userId, ST_SetSRID(ST_MakePoint(@lng, @lat), 4326));
+                           """;
+        
+        await connection.ExecuteAsync(sql, new { userId, location.Lng, location.Lat });
+    }
 }

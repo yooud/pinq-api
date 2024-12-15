@@ -11,7 +11,7 @@ namespace pinq.api.WebSockets;
 public abstract class WebSocketHandler(
     IAuthorizationService authorizationService,
     ISessionCacheService sessionService,
-    IUserRepository userRepository)
+    IUserProfileRepository profileRepository)
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -26,6 +26,7 @@ public abstract class WebSocketHandler(
     protected FirebaseToken Token;
     protected IWebSocketConnectionManager ConnectionManager;
     public int UserId { get; private set; }
+    public string Username { get; private set; }   
 
     public async Task HandleAsync(HttpContext context)
     {
@@ -128,8 +129,16 @@ public abstract class WebSocketHandler(
 
             if (_isAuthorized && Token != null)
             {
-                var user = await userRepository.GetUserByUid(Token.Uid);
-                UserId = user.Id;
+                var profile = await profileRepository.GetProfileByUid(Token.Uid);
+                if (profile is null)
+                {
+                    _isAuthorized = false;
+                    await SendMessageAsync(new { type = "error", message = "The profile is not complete" });
+                    return;
+                }
+
+                UserId = profile.UserId;
+                Username = profile.Username;
                 ConnectionManager.AddConnection(UserId, this);
                 await OnInitialAsync();
             }

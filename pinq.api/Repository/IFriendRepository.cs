@@ -14,4 +14,6 @@ public interface IFriendRepository
     public Task<IEnumerable<Profile>> GetFriendsAsync(int userId, int count, int skip);
 
     public Task<int> CountFriendsAsync(int userId);
+    
+    public Task<IEnumerable<int>> GetFriendIdsAsync(int userId);
 }

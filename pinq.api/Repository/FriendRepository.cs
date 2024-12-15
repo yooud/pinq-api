@@ -237,4 +237,22 @@ public class FriendRepository(IDbConnection connection) : IFriendRequestReposito
         var result = await connection.ExecuteScalarAsync(sql, new { userId });
         return Convert.ToInt32(result);
     }
+
+    public async Task<IEnumerable<int>> GetFriendIdsAsync(int userId)
+    {
+        const string sql = """
+                           SELECT 
+                               p.user_id
+                           FROM friends f
+                           JOIN user_profiles p 
+                               ON (f.user_id = @userId AND p.user_id = f.friend_id)
+                               OR (f.friend_id = @userId AND p.user_id = f.user_id)
+                           LEFT JOIN photos ph ON p.photo_id = ph.id
+                           WHERE f.user_id = @userId OR
+                                 f.friend_id = @userId
+                           """;
+
+        var result = await connection.QueryAsync<int>(sql, new { userId });
+        return result;
+    }
 }
