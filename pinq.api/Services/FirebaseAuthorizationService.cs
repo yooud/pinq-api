@@ -48,4 +48,19 @@ public class FirebaseAuthorizationService : IAuthorizationService
             return false;
         }
     }
+
+    public async Task<bool> CheckUserRoleAsync(string uid, string role)
+    {
+        try
+        {
+            var user = await FirebaseAuth.DefaultInstance.GetUserAsync(uid);
+            if (user is null)
+                return false;
+            return user.CustomClaims.TryGetValue("role", out var userRole) && userRole?.ToString() == role;
+        }
+        catch (FirebaseAuthException ex)
+        {
+            return false;
+        }
+    }
 }

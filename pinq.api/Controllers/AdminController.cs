@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using pinq.api.Filters;
 using pinq.api.Models.Dto;
 using pinq.api.Models.Dto.Admin;
 using pinq.api.Repository;
@@ -11,8 +11,7 @@ namespace pinq.api.Controllers;
 
 [ApiController]
 [Route("admin")]
-[Authorize(Roles = "admin")]
-[ValidateSession]
+[Authorize]
 public class AdminController(
     IUserProfileRepository profileRepository, 
     IAuthorizationService authorizationService) : ControllerBase
@@ -23,6 +22,10 @@ public class AdminController(
         [FromQuery][Range(0, int.MaxValue, ErrorMessage = "The count parameter must be a non-negative integer.")] int count = 50
     )
     {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        if (!await authorizationService.CheckUserRoleAsync(uid, "admin"))
+            return Forbid();
+        
         var users = await profileRepository.GetProfilesAsync(count, skip);
         
         foreach (var user in users) 
@@ -42,14 +45,18 @@ public class AdminController(
         });
     }
     
-    [HttpPatch("user/{uid}")]
-    public async Task<IActionResult> ChangeUserRole(string uid, [FromBody] UpdateUserRequestDto request)
+    [HttpPatch("user/{userUid}")]
+    public async Task<IActionResult> ChangeUserRole(string userUid, [FromBody] UpdateUserRequestDto request)
     {
-        var user = await profileRepository.GetProfileByUid(uid);
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        if (!await authorizationService.CheckUserRoleAsync(uid, "admin"))
+            return Forbid();
+        
+        var user = await profileRepository.GetProfileByUid(userUid);
         if (user is null)
             return NotFound(new { Message = "User not found" });
         
-        var result = await authorizationService.SetUserRoleAsync(uid, request.Role.ToString().ToLower());
+        var result = await authorizationService.SetUserRoleAsync(userUid, request.Role.ToString().ToLower());
         if (result)
             return NoContent();
         

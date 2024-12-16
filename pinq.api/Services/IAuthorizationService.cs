@@ -11,4 +11,6 @@ public interface IAuthorizationService
     public Task<string> GetUserRoleAsync(string uid);
     
     public Task<bool> SetUserRoleAsync(string uid, string role);
+    
+    public Task<bool> CheckUserRoleAsync(string uid, string role);
 }
