@@ -55,13 +55,22 @@ public class MapWebSocketHandler(
         var location = data.GetProperty("location");
         var locationDto = new LocationDto
         {
-            Lat= location.GetProperty("lat").GetDouble(),
+            Lat = location.GetProperty("lat").GetDouble(),
             Lng = location.GetProperty("lng").GetDouble()
         };
         await mapRepository.UpdateLocationAsync(UserId, locationDto);
 
         var friends = await friendRepository.GetFriendIdsAsync(UserId);
         foreach (var friendId in friends)
-            ConnectionManager.GetConnection(friendId)?.SendMessageAsync(new { type = "move", data = new { Username, location } });
+            ConnectionManager.GetConnection(friendId)?.SendMessageAsync(new
+            {
+                type = "move", 
+                data = new
+                {
+                    Id = friendId, 
+                    Username, 
+                    location
+                }
+            });
     }
 }

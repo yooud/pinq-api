@@ -1,16 +1,16 @@
 using System.Data;
 using Dapper;
 using pinq.api.Models.Dto.Map;
-using pinq.api.Models.Dto.Profile;
 
 namespace pinq.api.Repository;
 
 public class MapRepository(IDbConnection connection) : IMapRepository
 {
-    public async Task<IEnumerable<ProfileDto>> GetFriendsLocationsAsync(int userId)
+    public async Task<IEnumerable<UserDto>> GetFriendsLocationsAsync(int userId)
     {
         const string sql = """
-                           SELECT 
+                           SELECT
+                               p.user_id AS Id,
                                p.username AS Username,
                                p.display_name AS DisplayName,
                                ph.image_url AS ProfilePictureUrl,
@@ -32,7 +32,7 @@ public class MapRepository(IDbConnection connection) : IMapRepository
                            WHERE f.user_id = @userId OR f.friend_id = @userId;
                            """;
         
-        var profiles = await connection.QueryAsync<ProfileDto, LocationDto, ProfileDto>(
+        var profiles = await connection.QueryAsync<UserDto, LocationDto, UserDto>(
             sql,
             (profile, location) =>
             {
@@ -46,10 +46,11 @@ public class MapRepository(IDbConnection connection) : IMapRepository
         return profiles;
     }
 
-    public async Task<ProfileDto?> GetLocationsAsync(int userId)
+    public async Task<UserDto?> GetLocationsAsync(int userId)
     {
         const string sql = """
                            SELECT 
+                               p.user_id AS Id,
                                p.username AS Username,
                                p.display_name AS DisplayName,
                                ph.image_url AS ProfilePictureUrl,
@@ -68,7 +69,7 @@ public class MapRepository(IDbConnection connection) : IMapRepository
                            WHERE p.user_id = @userId;
                            """;
         
-        var results = await connection.QueryAsync<ProfileDto, LocationDto, ProfileDto>(
+        var results = await connection.QueryAsync<UserDto, LocationDto, UserDto>(
             sql,
             (profile, location) =>
             {
