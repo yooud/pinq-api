@@ -134,9 +134,9 @@ public class ChatRepository(IDbConnection connection) : IChatRepository
                                RETURNING 
                                    id AS Id, 
                                    content AS Content, 
-                                   sent_at AS SentAt, 
-                                   edited_at AS EditedAt, 
-                                   seen_at AS SeenAt, 
+                                   EXTRACT(EPOCH FROM sent_at) AS SentAt, 
+                                   EXTRACT(EPOCH FROM edited_at) AS EditedAt, 
+                                   EXTRACT(EPOCH FROM seen_at) AS SeenAt, 
                                    sender_id
                            )
                            SELECT 
