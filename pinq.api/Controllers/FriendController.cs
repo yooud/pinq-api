@@ -7,6 +7,7 @@ using pinq.api.Models.Dto;
 using pinq.api.Models.Dto.Profile;
 using pinq.api.Models.Entities;
 using pinq.api.Repository;
+using pinq.api.WebSockets;
 
 namespace pinq.api.Controllers;
 
@@ -52,6 +53,14 @@ public class FriendController(
                 return BadRequest(new { message = "You have already sent a friend request" });
             friendRequest = await friendRequestRepository.AcceptFriendRequestAsync(friendRequest.Id);
             await friendRepository.CreateFriendshipAsync(receiver.UserId, sender.UserId);
+
+            var connectionManager = HttpContext.RequestServices.GetRequiredService<MapWebSocketConnectionManager>();
+
+            if (connectionManager.GetConnection(sender.UserId) is MapWebSocketHandler senderConnection)
+                await senderConnection.OnNewFriend(receiver.UserId);
+
+            if (connectionManager.GetConnection(receiver.UserId) is MapWebSocketHandler receiverConnection)
+                await receiverConnection.OnNewFriend(sender.UserId);
         }
         return Ok(new { Status = friendRequest.Status });
     }
@@ -106,6 +115,15 @@ public class FriendController(
         if (isFriends)
         {
             await friendRepository.DeleteFriendshipAsync(receiver.UserId, sender.UserId);
+            
+            var connectionManager = HttpContext.RequestServices.GetRequiredService<MapWebSocketConnectionManager>();
+
+            if (connectionManager.GetConnection(sender.UserId) is MapWebSocketHandler senderConnection)
+                await senderConnection.OnFriendRemoved(receiver.UserId);
+
+            if (connectionManager.GetConnection(receiver.UserId) is MapWebSocketHandler receiverConnection)
+                await receiverConnection.OnFriendRemoved(sender.UserId);
+            
             return Ok();
         }
         

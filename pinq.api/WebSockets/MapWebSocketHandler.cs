@@ -73,4 +73,15 @@ public class MapWebSocketHandler(
                 }
             });
     }
+
+    public async Task OnNewFriend(int friendId)
+    {
+        var location = await mapRepository.GetLocationsAsync(friendId);
+        await SendMessageAsync(new { type = "new_friend", data = location });
+    }
+    
+    public async Task OnFriendRemoved(int friendId)
+    {
+        await SendMessageAsync(new { type = "friend_removed", data = friendId });
+    }
 }
