@@ -80,4 +80,49 @@ public class ChatRepository(IDbConnection connection) : IChatRepository
         var result = await connection.QuerySingleAsync<int>(sql, new { userId });
         return result;
     }
+    
+    public async Task<Chat?> GetChatByUsernamesAsync(string username1, string username2)
+    {
+        const string sql = """
+                           SELECT * 
+                           FROM chats c 
+                           JOIN user_profiles p1 ON c.user_id1 = p1.user_id
+                           JOIN user_profiles p2 ON c.user_id2 = p2.user_id
+                           WHERE (p1.username = @username1 AND p2.username = @username2)
+                              OR (p1.username = @username2 AND p2.username = @username1)
+                           """;
+        var result = await connection.QuerySingleOrDefaultAsync<Chat>(sql, new { username1, username2 });
+        return result;
+    }
+    
+    public async Task<ICollection<MessageDto>> GetChatMessagesAsync(int chatId, int count, int skip)
+    {
+        const string sql = """
+                           SELECT 
+                               m.id AS Id,
+                               m.content AS Content, 
+                               EXTRACT(EPOCH FROM m.sent_at) AS SentAt, 
+                               EXTRACT(EPOCH FROM m.edited_at) AS EditedAt, 
+                               EXTRACT(EPOCH FROM m.seen_at) AS SeenAt,
+                               p.username AS SenderUsername
+                           FROM chat_messages m
+                           JOIN user_profiles p ON m.sender_id = p.user_id
+                           WHERE m.chat_id = @chatId
+                           ORDER BY m.sent_at DESC
+                           LIMIT @count
+                           OFFSET @skip
+                           """;
+        var result = await connection.QueryAsync<MessageDto>(sql, new { chatId, count, skip });
+        var messages = result.ToList();
+        foreach (var message in messages) 
+            message.Content = JsonSerializer.Deserialize<MessageContent>(message.Content.ToString(), _options);
+        return messages.ToList();
+    }
+    
+    public async Task<int> CountChatMessagesAsync(int chatId)
+    {
+        const string sql = "SELECT COUNT(*) FROM chat_messages m WHERE m.chat_id = @chatId";
+        var result = await connection.QuerySingleAsync<int>(sql, new { chatId });
+        return result;
+    }
 }

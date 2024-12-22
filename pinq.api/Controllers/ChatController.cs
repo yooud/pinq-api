@@ -42,4 +42,36 @@ public class ChatController(
             }
         });
     }
+    
+    [HttpGet("{username}/messages")]
+    public async Task<IActionResult> GetChatMessages(
+        string username, 
+        [FromQuery][Range(0, int.MaxValue, ErrorMessage = "The skip parameter must be a non-negative integer.")] int skip = 0,
+        [FromQuery][Range(0, int.MaxValue, ErrorMessage = "The count parameter must be a non-negative integer.")] int count = 10
+    )
+    {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        var user = await profileRepository.GetProfileByUid(uid);
+        if (user is null) 
+            return BadRequest(new { message = "You have not complete your profile." });
+        
+        var chat = await chatRepository.GetChatByUsernamesAsync(user.Username, username);
+        if (chat is null)
+            return NotFound(new { message = "Chat not found." });
+        
+        var messages = await chatRepository.GetChatMessagesAsync(chat.Id, count, skip);
+        var totalCount = await chatRepository.CountChatMessagesAsync(chat.Id);
+        
+        return Ok(new PaginatedListDto
+        {
+            Data = messages,
+            Pagination = new PaginatedListDto.Metadata
+            {
+                Skip = skip,
+                Count = messages.Count,
+                Total = totalCount,
+            }
+        });
+    }
 }
