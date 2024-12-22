@@ -154,4 +154,26 @@ public class ChatRepository(IDbConnection connection) : IChatRepository
         message.Content = messageContent;
         return message;
     }
+    
+    public async Task<ICollection<MessageDto>> GetChatMessagesUpdatesAsync(int chatId, long lastUpdate)
+    {
+        const string sql = """
+                           SELECT 
+                               m.id AS Id,
+                               m.content AS Content, 
+                               EXTRACT(EPOCH FROM m.sent_at) AS SentAt, 
+                               EXTRACT(EPOCH FROM m.edited_at) AS EditedAt, 
+                               EXTRACT(EPOCH FROM m.seen_at) AS SeenAt,
+                               p.username AS SenderUsername
+                           FROM chat_messages m
+                           JOIN user_profiles p ON m.sender_id = p.user_id
+                           WHERE m.chat_id = @chatId AND EXTRACT(EPOCH FROM m.sent_at) > @lastUpdate
+                           ORDER BY m.updated_at DESC
+                           """;
+        var result = await connection.QueryAsync<MessageDto>(sql, new { chatId, lastUpdate });
+        var messages = result.ToList();
+        foreach (var message in messages) 
+            message.Content = JsonSerializer.Deserialize<MessageContent>(message.Content.ToString(), Options);
+        return messages.ToList();
+    }
 }

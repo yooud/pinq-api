@@ -95,4 +95,21 @@ public class ChatController(
         var message = await chatRepository.SendMessageAsync(chat.Id, user.UserId, request);
         return StatusCode(201, message);
     }
+
+    [HttpGet("{username}/messages/updates")]
+    public async Task<IActionResult> GetChatUpdates(string username, [FromQuery] long lastUpdate)
+    {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        var user = await profileRepository.GetProfileByUid(uid);
+        if (user is null)
+            return BadRequest(new { message = "You have not complete your profile." });
+
+        var chat = await chatRepository.GetChatByUsernamesAsync(user.Username, username);
+        if (chat is null)
+            return NotFound(new { message = "Chat not found." });
+
+        var messages = await chatRepository.GetChatMessagesUpdatesAsync(chat.Id, lastUpdate);
+        return Ok(messages);
+    }
 }
