@@ -17,7 +17,7 @@ public class ChatRepository(IDbConnection connection) : IChatRepository
     {
         const string sql = """
                            SELECT 
-                               c.id AS Id,
+                               c.id AS ChatId,
                                CASE 
                                    WHEN c.user_id1 = @userId THEN p2.username
                                    ELSE p1.username
@@ -30,7 +30,8 @@ public class ChatRepository(IDbConnection connection) : IChatRepository
                                    WHEN c.user_id1 = @userId THEN ph2.image_url
                                    ELSE ph1.image_url
                                END AS PictureUrl,
-                               m.content AS Content, 
+                               m.content AS Content,
+                               m.id AS Id,
                                EXTRACT(EPOCH FROM m.sent_at) AS SentAt, 
                                EXTRACT(EPOCH FROM m.edited_at) AS EditedAt, 
                                EXTRACT(EPOCH FROM m.seen_at) AS SeenAt,
@@ -41,7 +42,8 @@ public class ChatRepository(IDbConnection connection) : IChatRepository
                            JOIN user_profiles p2 ON c.user_id2 = p2.user_id
                            LEFT JOIN photos ph2 ON p2.photo_id = ph2.id
                            LEFT JOIN (
-                                 SELECT DISTINCT ON (m.chat_id) 
+                                 SELECT DISTINCT ON (m.chat_id)
+                                     m.id,
                                      m.chat_id, 
                                      m.content, 
                                      m.sent_at, 
@@ -175,5 +177,30 @@ public class ChatRepository(IDbConnection connection) : IChatRepository
         foreach (var message in messages) 
             message.Content = JsonSerializer.Deserialize<MessageContent>(message.Content.ToString(), Options);
         return messages.ToList();
+    }
+    
+    public async Task<Message?> GetChatMessageByIdAsync(int messageId)
+    {
+        const string sql = """
+                           SELECT 
+                               m.id AS Id,
+                               m.chat_id AS ChatId,
+                               m.sender_id AS SenderId,
+                               m.content AS Content, 
+                               m.sent_at AS SentAt, 
+                               m.edited_at AS EditedAt, 
+                               m.seen_at AS SeenAt,
+                               m.updated_at AS UpdatedAt
+                           FROM chat_messages m
+                           WHERE m.id = @messageId
+                           """;
+        var result = await connection.QuerySingleOrDefaultAsync<Message>(sql, new { messageId });
+        return result;
+    }
+    
+    public async Task DeleteChatMessageAsync(int messageId)
+    {
+        const string sql = "DELETE FROM chat_messages m WHERE m.id = @messageId";
+        await connection.ExecuteAsync(sql, new { messageId });
     }
 }

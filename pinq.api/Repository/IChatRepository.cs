@@ -18,4 +18,8 @@ public interface IChatRepository
     public Task<MessageDto> SendMessageAsync(int chatId, int senderId, object messageContent);
     
     public Task<ICollection<MessageDto>> GetChatMessagesUpdatesAsync(int chatId, long lastUpdate);
+    
+    public Task<Message?> GetChatMessageByIdAsync(int messageId);
+    
+    public Task DeleteChatMessageAsync(int messageId);
 }

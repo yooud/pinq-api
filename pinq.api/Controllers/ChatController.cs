@@ -112,4 +112,31 @@ public class ChatController(
         var messages = await chatRepository.GetChatMessagesUpdatesAsync(chat.Id, lastUpdate);
         return Ok(messages);
     }
+    
+    [HttpDelete("{username}/messages/{messageId:int}")]
+    public async Task<IActionResult> DeleteMessage(string username, int messageId)
+    {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        var user = await profileRepository.GetProfileByUid(uid);
+        if (user is null) 
+            return BadRequest(new { message = "You have not complete your profile." });
+        
+        var chat = await chatRepository.GetChatByUsernamesAsync(user.Username, username);
+        if (chat is null)
+            return NotFound(new { message = "Chat not found." });
+        
+        var message = await chatRepository.GetChatMessageByIdAsync(messageId);
+        if (message is null)
+            return NotFound(new { message = "Message not found." });
+        
+        if (message.ChatId != chat.Id)
+            return BadRequest(new { message = "Message does not belong to this chat." });
+        
+        if (message.SenderId != user.UserId)
+            return Unauthorized(new { message = "You are not authorized to delete this message." });
+        
+        await chatRepository.DeleteChatMessageAsync(messageId);
+        return NoContent();
+    }
 }
