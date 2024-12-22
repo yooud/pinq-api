@@ -22,4 +22,6 @@ public interface IChatRepository
     public Task<Message?> GetChatMessageByIdAsync(int messageId);
     
     public Task DeleteChatMessageAsync(int messageId);
+    
+    public Task<MessageDto> EditChatMessageAsync(int messageId, object messageContent);
 }

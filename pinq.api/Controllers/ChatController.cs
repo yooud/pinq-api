@@ -1,10 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using pinq.api.Filters;
 using pinq.api.Models.Dto;
 using pinq.api.Models.Dto.Chat;
+using pinq.api.Models.Entities;
 using pinq.api.Repository;
 
 namespace pinq.api.Controllers;
@@ -138,5 +140,39 @@ public class ChatController(
         
         await chatRepository.DeleteChatMessageAsync(messageId);
         return NoContent();
+    }
+    
+    [HttpPatch("{username}/messages/{messageId:int}")]
+    public async Task<IActionResult> EditMessage(string username, int messageId, [FromBody] EditMessageRequestDto request)
+    {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        var user = await profileRepository.GetProfileByUid(uid);
+        if (user is null) 
+            return BadRequest(new { message = "You have not complete your profile." });
+        
+        var chat = await chatRepository.GetChatByUsernamesAsync(user.Username, username);
+        if (chat is null)
+            return NotFound(new { message = "Chat not found." });
+        
+        var message = await chatRepository.GetChatMessageByIdAsync(messageId);
+        if (message is null)
+            return NotFound(new { message = "Message not found." });
+        
+        if (message.ChatId != chat.Id)
+            return BadRequest(new { message = "Message does not belong to this chat." });
+        
+        if (message.SenderId != user.UserId)
+            return Unauthorized(new { message = "You are not authorized to edit this message." });
+
+        var content = JsonSerializer.Deserialize<MessageContent>(message.Content.ToString(), new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+        });
+        if (request.Text.Trim().Equals(content?.Text?.Trim()))
+            return BadRequest(new { message = "No changes detected." });
+        
+        var result = await chatRepository.EditChatMessageAsync(messageId, request);
+        return Ok(result);
     }
 }

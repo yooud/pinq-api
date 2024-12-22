@@ -203,4 +203,35 @@ public class ChatRepository(IDbConnection connection) : IChatRepository
         const string sql = "DELETE FROM chat_messages m WHERE m.id = @messageId";
         await connection.ExecuteAsync(sql, new { messageId });
     }
+    
+    public async Task<MessageDto> EditChatMessageAsync(int messageId, object messageContent)
+    {
+        const string sql = """
+                           WITH updated_message AS (
+                               UPDATE chat_messages
+                               SET content = @content::json, edited_at = NOW(), updated_at = NOW()
+                               WHERE id = @messageId
+                               RETURNING 
+                                   id AS Id, 
+                                   content AS Content, 
+                                   EXTRACT(EPOCH FROM sent_at) AS SentAt, 
+                                   EXTRACT(EPOCH FROM edited_at) AS EditedAt, 
+                                   EXTRACT(EPOCH FROM seen_at) AS SeenAt, 
+                                   sender_id
+                           )
+                           SELECT 
+                               um.Id, 
+                               um.Content, 
+                               um.SentAt, 
+                               um.EditedAt, 
+                               um.SeenAt,
+                               up.username AS SenderUsername
+                           FROM updated_message um
+                           JOIN user_profiles up ON um.sender_id = up.user_id;
+                           """;
+        var content = JsonSerializer.Serialize(messageContent, Options);
+        var message = await connection.QueryFirstAsync<MessageDto>(sql, new { messageId, content });
+        message.Content = messageContent;
+        return message;
+    }
 }
