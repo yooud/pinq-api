@@ -7,6 +7,7 @@ using pinq.api.Models.Dto;
 using pinq.api.Models.Dto.Profile;
 using pinq.api.Models.Entities;
 using pinq.api.Repository;
+using pinq.api.WebSockets;
 
 namespace pinq.api.Controllers;
 
@@ -93,6 +94,23 @@ public class ProfileController(
         }
         
         photo ??= await photoRepository.GetPhotoByIdAsync(profile.PhotoId);
+
+        var data = new
+        {
+            Id = profile.UserId,
+            profile.Username,
+            profile.DisplayName,
+            ProfilePictureUrl = photo?.ImageUrl
+        };
+        var connectionManager = HttpContext.RequestServices.GetRequiredService<MapWebSocketConnectionManager>();
+        var friendIds = await friendRepository.GetFriendIdsAsync(profile.UserId);
+        foreach (var friendId in friendIds)
+            if (connectionManager.GetConnection(friendId) is MapWebSocketHandler friendConnection)
+                await friendConnection.OnProfileUpdated(profile.UserId, data);
+        
+        if (connectionManager.GetConnection(profile.UserId) is MapWebSocketHandler userConnection)
+            await userConnection.OnProfileUpdated(profile.UserId, data);
+        
         return Ok(new ProfileDto
         {
             Username = profile.Username,

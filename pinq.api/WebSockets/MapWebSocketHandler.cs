@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using pinq.api.Filters;
 using pinq.api.Models.Dto.Map;
+using pinq.api.Models.Dto.Profile;
 using pinq.api.Repository;
 using pinq.api.Services;
 using IAuthorizationService = pinq.api.Services.IAuthorizationService;
@@ -83,5 +84,10 @@ public class MapWebSocketHandler(
     public async Task OnFriendRemoved(int friendId)
     {
         await SendMessageAsync(new { type = "friend_removed", data = friendId });
+    }
+    
+    public async Task OnProfileUpdated(int userId, object profile)
+    {
+        await SendMessageAsync(new { type = "profile_updated", data = profile });
     }
 }
