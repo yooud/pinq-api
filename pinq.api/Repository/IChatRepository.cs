@@ -14,4 +14,6 @@ public interface IChatRepository
     public Task<ICollection<MessageDto>> GetChatMessagesAsync(int chatId, int count, int skip);
     
     public Task<int> CountChatMessagesAsync(int chatId);
+    
+    public Task<MessageDto> SendMessageAsync(int chatId, int senderId, object messageContent);
 }

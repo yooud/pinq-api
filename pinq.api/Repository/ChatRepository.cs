@@ -8,10 +8,9 @@ namespace pinq.api.Repository;
 
 public class ChatRepository(IDbConnection connection) : IChatRepository
 {
-    private static readonly JsonSerializerOptions _options = new()
+    private static readonly JsonSerializerOptions Options = new()
     {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
     };
     
     public async Task<ICollection<ChatDto>> GetChatsByUserIdAsync(int userId, int count, int skip)
@@ -64,7 +63,7 @@ public class ChatRepository(IDbConnection connection) : IChatRepository
             {
                 chat.Profile = profile;
                 chat.LastMessage = message;
-                chat.LastMessage.Content = JsonSerializer.Deserialize<MessageContent>(message.Content.ToString(),_options);
+                chat.LastMessage.Content = JsonSerializer.Deserialize<MessageContent>(message.Content.ToString(),Options);
                 return chat;
             },
             new { userId, count, skip },
@@ -115,7 +114,7 @@ public class ChatRepository(IDbConnection connection) : IChatRepository
         var result = await connection.QueryAsync<MessageDto>(sql, new { chatId, count, skip });
         var messages = result.ToList();
         foreach (var message in messages) 
-            message.Content = JsonSerializer.Deserialize<MessageContent>(message.Content.ToString(), _options);
+            message.Content = JsonSerializer.Deserialize<MessageContent>(message.Content.ToString(), Options);
         return messages.ToList();
     }
     
@@ -124,5 +123,35 @@ public class ChatRepository(IDbConnection connection) : IChatRepository
         const string sql = "SELECT COUNT(*) FROM chat_messages m WHERE m.chat_id = @chatId";
         var result = await connection.QuerySingleAsync<int>(sql, new { chatId });
         return result;
+    }
+    
+    public async Task<MessageDto> SendMessageAsync(int chatId, int senderId, object messageContent)
+    {
+        const string sql = """
+                           WITH inserted_message AS (
+                               INSERT INTO chat_messages (chat_id, sender_id, content)
+                               VALUES (@chatId, @senderId, @content::json)
+                               RETURNING 
+                                   id AS Id, 
+                                   content AS Content, 
+                                   sent_at AS SentAt, 
+                                   edited_at AS EditedAt, 
+                                   seen_at AS SeenAt, 
+                                   sender_id
+                           )
+                           SELECT 
+                               im.Id, 
+                               im.Content, 
+                               im.SentAt, 
+                               im.EditedAt, 
+                               im.SeenAt,
+                               up.username AS SenderUsername
+                           FROM inserted_message im
+                           JOIN user_profiles up ON im.sender_id = up.user_id;
+                           """;
+        var content = JsonSerializer.Serialize(messageContent, Options);
+        var message = await connection.QueryFirstAsync<MessageDto>(sql, new { chatId, senderId, content });
+        message.Content = messageContent;
+        return message;
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using pinq.api.Filters;
 using pinq.api.Models.Dto;
+using pinq.api.Models.Dto.Chat;
 using pinq.api.Repository;
 
 namespace pinq.api.Controllers;
@@ -73,5 +74,25 @@ public class ChatController(
                 Total = totalCount,
             }
         });
+    }
+    
+    [HttpPost("{username}/messages")]
+    public async Task<IActionResult> SendMessage(
+        string username,
+        [FromBody] SendMessageRequestDto request
+    )
+    {
+        var uid = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        var user = await profileRepository.GetProfileByUid(uid);
+        if (user is null) 
+            return BadRequest(new { message = "You have not complete your profile." });
+        
+        var chat = await chatRepository.GetChatByUsernamesAsync(user.Username, username);
+        if (chat is null)
+            return NotFound(new { message = "Chat not found." });
+        
+        var message = await chatRepository.SendMessageAsync(chat.Id, user.UserId, request);
+        return StatusCode(201, message);
     }
 }
