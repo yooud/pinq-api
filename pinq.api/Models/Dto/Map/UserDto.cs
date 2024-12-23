@@ -8,7 +8,7 @@ public class UserDto
     
     public string DisplayName { get; set; }
     
-    public string ProfilePicture { get; set; }
+    public string ProfilePictureUrl { get; set; }
     
     public LocationDto Location { get; set; }
     
