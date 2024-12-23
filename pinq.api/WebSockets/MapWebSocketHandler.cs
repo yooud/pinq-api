@@ -68,7 +68,7 @@ public class MapWebSocketHandler(
                 type = "move", 
                 data = new
                 {
-                    Id = friendId, 
+                    Id = UserId, 
                     Username, 
                     location
                 }
